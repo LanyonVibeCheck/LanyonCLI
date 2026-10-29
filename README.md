@@ -1,10 +1,8 @@
 # LanyonCLI
 
-lanyon-cli is the command-line client for a *Lanyon server*, the service that runs Lanyon: a code generation and formal verification agent for applied mathematics and computational physics. This README is for people who run Lanyon from a terminal, and for the admins who build the client.
+LanyonCLI is the command-line client *Lanyon*: a code generation and formal verification agent for applied mathematics and computational physics. This README guides you through how to run Lanyon from a terminal.
 
-The server does the work. The client sends your prompts, runs Lanyon's *stages* (`specify`, `deepthought`, `auto`, `deepauto`, `verify`, `compile` and `simulate`), shows what each one produced, and downloads the files. Everything you do belongs to a *session*, which the server keeps, so you can leave and resume it later from any computer. The client uses only Python's standard library.
-
-The full guide, with a glossary of the terms used here, is a [Quarto](https://quarto.org) book in `site/`. To read it, run `quarto preview` in that folder.
+Everything you do belongs to a *session*, which the server keeps, so you can leave and resume it later from any computer. The client either runs as an executable, or a zipped Python package which only uses the standard library.
 
 ## Contents
 
@@ -14,12 +12,9 @@ The full guide, with a glossary of the terms used here, is a [Quarto](https://qu
 - [Running Lanyon](#running-lanyon): start it, or run it with Python.
 - [Using Lanyon](#using-lanyon): commands, Lanyon's assistant, downloads and scripts.
 - [Sessions](#sessions): find a session's ID, resume it, cancel a command.
-- [Built files](#built-files): for admins, building the files with GitHub Actions.
-- [Development](#development): install from source and run the tests.
 
 ## Download
-
-Each build of lanyon-cli makes four files:
+This repository contains four files:
 
 | File | Runs on |
 |---|---|
@@ -28,50 +23,8 @@ Each build of lanyon-cli makes four files:
 | `lanyon-cli-windows.exe` | Windows, x86-64 |
 | `lanyon-cli.pyz` | any system with Python 3.10 or later |
 
-Download the executable for your system and the `.pyz` file. The `.pyz` is the fallback if your system will not run the executable (see [Run with Python](#run-with-python)).
+Download the executable for your system or the `.pyz` file. The `.pyz` is the fallback if your system will not run the executable (see [Run with Python](#run-with-python)).
 
-You need a GitHub account that can read `lanyonai/lanyon-cli`.
-
-### With the GitHub CLI
-
-These commands download the newest successful build from `main` into a new folder, `lanyon-cli-dist`. They need the [GitHub CLI](https://cli.github.com), signed in to your GitHub account. To sign in, run this once and follow its prompts:
-
-```bash
-gh auth login
-```
-
-Linux:
-
-```bash
-RUN_ID=$(gh run list --repo lanyonai/lanyon-cli --workflow build.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run download "$RUN_ID" --repo lanyonai/lanyon-cli --name lanyon-cli-linux --dir lanyon-cli-dist
-gh run download "$RUN_ID" --repo lanyonai/lanyon-cli --name lanyon-cli-pyz --dir lanyon-cli-dist
-```
-
-macOS:
-
-```bash
-RUN_ID=$(gh run list --repo lanyonai/lanyon-cli --workflow build.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run download "$RUN_ID" --repo lanyonai/lanyon-cli --name lanyon-cli-macos --dir lanyon-cli-dist
-gh run download "$RUN_ID" --repo lanyonai/lanyon-cli --name lanyon-cli-pyz --dir lanyon-cli-dist
-```
-
-Windows (PowerShell):
-
-```powershell
-$RunId = gh run list --repo lanyonai/lanyon-cli --workflow build.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId'
-gh run download $RunId --repo lanyonai/lanyon-cli --name lanyon-cli-windows --dir lanyon-cli-dist
-gh run download $RunId --repo lanyonai/lanyon-cli --name lanyon-cli-pyz --dir lanyon-cli-dist
-```
-
-### From the GitHub website
-
-1. Sign in to GitHub and open the build workflow's page: <https://github.com/lanyonai/lanyon-cli/actions/workflows/build.yml>.
-2. Filter the runs by **Branch** `main` and open the newest one with a green tick.
-3. Scroll down the run's **Summary** to **Artifacts**. Download `lanyon-cli-linux`, `lanyon-cli-macos` or `lanyon-cli-windows` for your system, and `lanyon-cli-pyz`. Each one downloads as a zip file.
-4. Unzip both into one new folder named `lanyon-cli-dist`.
-
-GitHub deletes a run's files after a while. If the newest run has none, ask your admin for a new build.
 
 ## Permissions
 
@@ -80,14 +33,12 @@ The executables are not signed, and downloading them drops their permission to r
 **Linux:**
 
 ```bash
-cd lanyon-cli-dist
 chmod +x lanyon-cli-linux
 ```
 
 **macOS:**
 
 ```bash
-cd lanyon-cli-dist
 chmod +x lanyon-cli-macos
 xattr -c lanyon-cli-macos
 ```
@@ -96,95 +47,14 @@ The last command removes the quarantine mark that macOS adds to downloaded files
 
 **Windows:**
 
-First check Smart App Control. Open **Windows Security**, then **App & browser control**, then **Smart App Control settings**. If it is **On**, it blocks the executable and cannot make an exception for one file, so use [Run with Python](#run-with-python) instead. If it is **Off**, unblock the file in PowerShell:
+First check Smart App Control. Open **Windows Security**, then **App & browser control**, then **Smart App Control settings**. If it is **On**, it blocks the executable and cannot make an exception for one file, so use [Run with Python](#run-with-python) instead. We don't recommend turning **Smart App Control settings** off if you can help it. If, however, it is already **Off**, then unblock the file in PowerShell:
 
 ```powershell
-cd lanyon-cli-dist
 Unblock-File .\lanyon-cli-windows.exe
 ```
 
 If Windows still shows **Windows protected your PC** when the file starts, click **More info**, then **Run anyway**.
 
-## Your Lanyon account
-
-Every session you open is charged to a Lanyon account. The built files carry one, so they need nothing more: they send it only to Lanyon's hosted servers. To charge your own account instead, or with a source install, which carries none, set your Lanyon API key and email in the `LANYON_API_KEY` and `LANYON_API_EMAIL` environment variables. Without them a source install opens no session. lanyon-cli sends them only when it opens a session, and never prints them.
-
-In the commands below, replace `<key>` and `<email>` with yours. They set the variables for the current terminal and for every new one.
-
-**Linux** (bash):
-
-```bash
-echo 'export LANYON_API_KEY="<key>" LANYON_API_EMAIL="<email>"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**macOS** (zsh, the default shell):
-
-```bash
-echo 'export LANYON_API_KEY="<key>" LANYON_API_EMAIL="<email>"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-**Windows** (PowerShell):
-
-```powershell
-setx LANYON_API_KEY "<key>"; setx LANYON_API_EMAIL "<email>"
-$env:LANYON_API_KEY = "<key>"; $env:LANYON_API_EMAIL = "<email>"
-```
-
-The key is a secret: keep it out of scripts you share and out of version control.
-
-## Server location (optional)
-
-By default lanyon-cli submits your request to a dispatcher which allocates you to the least busy server. However if required you can request a specific server through the `LANYON_BASE_URL` environment variable.
-
-In the commands below, replace `<server URL>` with that URL. They set the variable for the current terminal and for every new one.
-
-**Linux** (bash):
-
-```bash
-echo 'export LANYON_BASE_URL="<server URL>"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**macOS** (zsh, the default shell):
-
-```bash
-echo 'export LANYON_BASE_URL="<server URL>"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-**Windows** (PowerShell):
-
-```powershell
-setx LANYON_BASE_URL "<server URL>"
-$env:LANYON_BASE_URL = "<server URL>"
-```
-
-Remember that if you want to return to using the dispatcher you need to unset the environment variables:
-
-**Linux** (bash):
-
-```bash
-sed -i '/^export LANYON_BASE_URL=/d' ~/.bashrc
-unset LANYON_BASE_URL MODAL_KEY MODAL_SECRET
-```
-
-**macOS** (zsh, the default shell):
-
-```bash
-sed -i '' '/^export LANYON_BASE_URL=/d' ~/.zshrc
-unset LANYON_BASE_URL MODAL_KEY MODAL_SECRET
-```
-
-**Windows** (PowerShell):
-
-```powershell
-[Environment]::SetEnvironmentVariable("LANYON_BASE_URL", $null, "User")
-Remove-Item Env:LANYON_BASE_URL, Env:MODAL_KEY, Env:MODAL_SECRET -ErrorAction SilentlyContinue
-```
-
-Other terminals that are already open keep the old values until they are closed.
 
 ## Running Lanyon
 
@@ -193,27 +63,23 @@ Run the executable from the folder that holds it.
 Linux:
 
 ```bash
-cd lanyon-cli-dist
 ./lanyon-cli-linux
 ```
 
 macOS:
 
 ```bash
-cd lanyon-cli-dist
 ./lanyon-cli-macos
 ```
 
 Windows (PowerShell):
 
 ```powershell
-cd lanyon-cli-dist
 .\lanyon-cli-windows.exe
 ```
 
 Lanyon connects, prints a welcome with the session's ID, and waits at a `>` prompt. Type `/help` to list the commands and `/quit` to leave. To list the command-line options, start it with `--help`.
 
-On Linux and macOS, the executables have line editing and command history at the prompt: the arrow keys move along the line and recall earlier lines. The Python version below has them where Python provides them.
 
 ### Run with Python
 
@@ -222,7 +88,6 @@ On Linux and macOS, the executables have line editing and command history at the
 Linux:
 
 ```bash
-cd lanyon-cli-dist
 python3 --version
 python3 lanyon-cli.pyz
 ```
@@ -230,7 +95,6 @@ python3 lanyon-cli.pyz
 macOS:
 
 ```bash
-cd lanyon-cli-dist
 python3 --version
 python3 lanyon-cli.pyz
 ```
@@ -240,12 +104,23 @@ The `python3` that comes with Apple's command-line tools can be older than 3.10.
 Windows (PowerShell):
 
 ```powershell
-cd lanyon-cli-dist
 py --version
 py lanyon-cli.pyz
 ```
 
 `py` comes with the installer from [python.org](https://www.python.org/downloads/). If you installed Python another way, use `python` instead of `py`.
+
+
+## Server location (optional)
+
+By default LanyonCLI submits your request to a dispatcher which allocates you to the least busy Lanyon server. However if you have requested a special server from our representatives (such as for a GPU simulation) you will be provided with a `<server-URL>` address. To launch Lanyon on this server using Python run the following command:
+
+```bash
+python3 lanyon-cli.pyz --base-url <server-URL>
+```
+
+The same command line flag will also work for any of the provided executables.
+
 
 ## Using Lanyon
 
